@@ -1,9 +1,13 @@
+using FormulaApi.Core;
+using FormulaApi.Core.Repositories;
 using FormulaApi.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+//builder.Services.AddScoped<IDriverRepository, DriverRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddDbContext<DriverDbContext>(options
     => options.UseSqlServer(builder.Configuration.GetConnectionString("DevConnection")));
 builder.Services.AddControllers();
