@@ -1,4 +1,5 @@
-﻿using FormulaApi.Data;
+﻿using FormulaApi.Core;
+using FormulaApi.Data;
 using FormulaApi.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,18 +12,18 @@ namespace FormulaApi.Controllers
     [ApiController]
     public class DriverController : ControllerBase
     {
-        private readonly DriverDbContext _context;
-        public DriverController(DriverDbContext context)
+        private readonly IUnitOfWork _unitOfWork;
+        public DriverController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         [ProducesResponseType(200)]
         [HttpGet]
-        public IActionResult GetDriversAll()
+        public async Task<IActionResult> GetDriversAll()
         {
-            var drivers = _context.Drivers.ToList();
-            return Ok(drivers);
+
+            return Ok(await _unitOfWork.Drivers.All());
         }
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
@@ -31,7 +32,7 @@ namespace FormulaApi.Controllers
         {
             try
             {
-                var driver = await _context.Drivers.FirstOrDefaultAsync(x => x.Id == id);
+                var driver = _unitOfWork.Drivers.GetById(id);
                 if (driver == null)
                 {
                     return NotFound();
@@ -48,28 +49,9 @@ namespace FormulaApi.Controllers
         [HttpPost]
         public async Task<IActionResult> PostDriver(Driver driver)
         {
-            using (var transaction = await _context.Database.BeginTransactionAsync())
-            {
-                try
-                {
-                    var newDriver = new Driver
-                    {
-                        Name = driver.Name,
-                        DriverNumber = driver.DriverNumber,
-                        Team = driver.Team
-
-                    };
-                    await _context.Drivers.AddAsync(newDriver);
-                    await _context.SaveChangesAsync();
-                    transaction.Commit();
-                    return Ok(newDriver);
-                }
-                catch (Exception ex)
-                {
-                    transaction.Rollback();
-                    return BadRequest(ex.Message);
-                }
-            }
+            var newDriver = await _unitOfWork.Drivers.Add(driver);
+            await _unitOfWork.CompleteAsync();
+            return Ok(newDriver);
 
         }
         [ProducesResponseType(200)]
@@ -77,28 +59,10 @@ namespace FormulaApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDriver(int id)
         {
-            using (var transaction = await _context.Database.BeginTransactionAsync())
-            {
-                try
-                {
-                    var driver = await _context.Drivers.FirstOrDefaultAsync(x => x.Id == id);
-                    if (driver is null)
-                    {
-                        return BadRequest();
-                    }
-                    _context.Drivers.Remove(driver);
-                    await _context.SaveChangesAsync();
-                    transaction.Commit();
-
-                    return Ok("Driver was deleted succesfully");
-                }
-                catch (Exception ex)
-                {
-                    transaction.Rollback();
-                    return BadRequest(ex.Message);
-                }
-            }
-
+            var driver = await _unitOfWork.Drivers.GetById(id);
+            await _unitOfWork.Drivers.Delete(driver);
+            await _unitOfWork.CompleteAsync();
+            return NoContent();
 
         }
         [ProducesResponseType(200)]
@@ -106,29 +70,15 @@ namespace FormulaApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDriver(int id, Driver request)
         {
-            var driver = await _context.Drivers.FindAsync(id);
+            var driver = await _unitOfWork.Drivers.GetById(id);
 
             if (driver == null)
             {
                 return NotFound();
             }
 
-            driver.Name = request.Name;
-            driver.DriverNumber = request.DriverNumber;
-            driver.Team = request.Team;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return Conflict();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"An error occurred while updating the driver: {ex.Message}");
-            }
+            await _unitOfWork.Drivers.Update(driver);
+            await _unitOfWork.CompleteAsync();
 
             return Ok(driver);
         }
