@@ -1,8 +1,9 @@
 ﻿namespace FormulaApi.Core
 {
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IDisposable
     {
         IDriverRepository Drivers { get; }
         Task CompleteAsync();
+
     }
 }
