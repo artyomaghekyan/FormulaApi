@@ -1,28 +1,29 @@
 ﻿using FormulaApi.Core;
+using FormulaApi.Core.Repositories;
 
 namespace FormulaApi.Data
 {
     public class UnitOfWork : IUnitOfWork, IDisposable
     {
-        public IDriverRepository Drivers { get; private set; }
         private readonly DriverDbContext _context;
-        private readonly ILogger _logger;
+        //private readonly ILogger _logger;
+        public IDriverRepository Drivers {  get; private set; }
 
-        public UnitOfWork(DriverDbContext context, ILogger logger)
+        public UnitOfWork(DriverDbContext context, ILoggerFactory loggerFactory)
         {
             _context = context;
-            _logger = logger;
-
-            //Drivers = new IDriverRepository(context, logger);
+            var _logger = loggerFactory.CreateLogger("logs");
+            Drivers = new DriverRepository(_context, _logger);
         }
-        public Task CompleteAsync()
+        
+        public async Task CompleteAsync()
         {
-            throw new NotImplementedException();
+            await _context.SaveChangesAsync();
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            _context.Dispose();
         }
     }
 }
